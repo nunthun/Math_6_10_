@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOG//DECODER — เครื่องมือถอดรหัสลอการิทึม & มาตราริกเตอร์</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg:#0e151d;
+  --panel:#141e29;
+  --panel-2:#101823;
+  --line:#243342;
+  --teal:#46e1b0;
+  --teal-dim:#2b7c62;
+  --amber:#f2a65a;
+  --red:#ff6f6f;
+  --text:#eaeef3;
+  --text-dim:#8b98a8;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Inter', sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans);}
+body{
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(70,225,176,0.07), transparent 40%),
+    radial-gradient(circle at 85% 10%, rgba(242,166,90,0.05), transparent 35%);
+  min-height:100vh;
+  padding-bottom:60px;
+}
+.wrap{max-width:920px; margin:0 auto; padding:0 20px;}
+
+/* ---------- HERO ---------- */
+.hero{padding:44px 0 28px; border-bottom:1px solid var(--line);}
+.eyebrow{
+  font-family:var(--mono); font-size:12px; letter-spacing:0.18em; color:var(--teal);
+  text-transform:uppercase; display:flex; align-items:center; gap:8px; margin-bottom:14px;
+}
+.eyebrow::before{content:"●"; font-size:8px; animation:blink 1.6s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.25;}}
+h1.title{
+  font-family:var(--mono); font-weight:700; font-size:clamp(30px,7vw,52px);
+  margin:0 0 6px; letter-spacing:-0.01em; color:var(--text);
+}
+h1.title span{color:var(--teal);}
+.subtitle{color:var(--text-dim); font-size:15px; max-width:620px; line-height:1.6; margin:0 0 28px;}
+
+/* Log ruler signature element */
+.ruler-box{background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:18px 20px 14px;}
+.ruler-label{font-family:var(--mono); font-size:11px; color:var(--text-dim); margin-bottom:10px; display:flex; justify-content:space-between;}
+.ruler{position:relative; height:46px;}
+.ruler-line{position:absolute; top:22px; left:0; right:0; height:2px; background:var(--line);}
+.tick{position:absolute; top:14px; width:1px; height:16px; background:var(--text-dim);}
+.tick-label{position:absolute; top:32px; transform:translateX(-50%); font-family:var(--mono); font-size:10px; color:var(--text-dim);}
+.tick-num{position:absolute; top:2px; transform:translateX(-50%); font-family:var(--mono); font-size:10px; color:#4c5a6a;}
+.marker{position:absolute; top:6px; width:2px; height:34px; background:var(--teal); box-shadow:0 0 8px var(--teal); transition:left .5s ease;}
+.marker-tag{position:absolute; top:-22px; transform:translateX(-50%); font-family:var(--mono); font-size:11px; background:var(--teal); color:#06231a; padding:1px 6px; border-radius:4px; font-weight:600; white-space:nowrap; transition:left .5s ease;}
+
+/* ---------- NAV ---------- */
+nav.maintabs{display:flex; gap:8px; margin:26px 0 22px; flex-wrap:wrap;}
+.maintabs button{
+  font-family:var(--mono); font-size:13px; letter-spacing:0.02em; color:var(--text-dim);
+  background:var(--panel); border:1px solid var(--line); padding:10px 18px; border-radius:8px;
+  cursor:pointer; transition:all .15s ease;
+}
+.maintabs button:hover{color:var(--text); border-color:#3a4a5c;}
+.maintabs button.active{color:#06231a; background:var(--teal); border-color:var(--teal); font-weight:600;}
+
+.subtabs{display:flex; gap:6px; margin-bottom:20px; border-bottom:1px solid var(--line); padding-bottom:0;}
+.subtabs button{
+  font-family:var(--sans); font-size:13.5px; color:var(--text-dim); background:transparent; border:none;
+  padding:10px 4px; margin-right:22px; cursor:pointer; border-bottom:2px solid transparent; transition:all .15s ease;
+}
+.subtabs button:hover{color:var(--text);}
+.subtabs button.active{color:var(--amber); border-bottom-color:var(--amber); font-weight:600;}
+
+/* ---------- PANEL / SUBPANEL TOGGLING ---------- */
+.panel{display:none;}
+.panel.active{display:block; animation:fade .25s ease;}
+
+.subpanel{display:none;}
+.subpanel.active{display:block; animation:fade .25s ease;}
+
+@keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+.card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px 24px; margin-bottom:18px;}
+.card h3{margin:0 0 4px; font-size:16px; font-family:var(--mono);}
+.card p.desc{color:var(--text-dim); font-size:13.5px; margin:0 0 18px; line-height:1.55;}
+
+.field-row{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px;}
+.field{flex:1; min-width:140px;}
+.field label{display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px; font-family:var(--mono);}
+.field input, .field select{
+  width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+  padding:10px 12px; border-radius:7px; font-family:var(--mono); font-size:14.5px; outline:none; transition:border-color .15s;
+}
+.field input:focus, .field select:focus{border-color:var(--teal);}
+.field select{cursor:pointer;}
+.hint{font-size:11.5px; color:#5c6b7c; margin-top:5px;}
+
+.solve-btn{
+  font-family:var(--mono); font-weight:600; font-size:13.5px; letter-spacing:0.03em;
+  background:var(--teal); color:#06231a; border:none; padding:11px 22px; border-radius:7px;
+  cursor:pointer; transition:transform .1s ease, box-shadow .15s ease;
+}
+.solve-btn:hover{box-shadow:0 0 0 3px rgba(70,225,176,0.18);}
+.solve-btn:active{transform:scale(0.98);}
+
+.error-box{
+  margin-top:14px; background:rgba(255,111,111,0.08); border:1px solid rgba(255,111,111,0.4);
+  color:#ffb0b0; padding:12px 14px; border-radius:8px; font-size:13.5px; display:flex; gap:10px; align-items:flex-start;
+}
+.error-box::before{content:"⚠"; font-size:15px; line-height:1;}
+
+.result{margin-top:16px;}
+.step{
+  font-family:var(--mono); font-size:13.5px; color:var(--text-dim); padding:9px 0 9px 16px;
+  border-left:2px solid var(--line); margin-bottom:2px; position:relative;
+}
+.step .n{position:absolute; left:-8px; top:9px; width:14px; height:14px; background:var(--panel-2); border:1px solid var(--line); border-radius:50%; font-size:9px; display:flex; align-items:center; justify-content:center; color:var(--text-dim);}
+.step b{color:var(--text); font-weight:500;}
+.final{
+  margin-top:14px; background:rgba(70,225,176,0.08); border:1px solid var(--teal-dim);
+  border-radius:8px; padding:16px 18px; font-family:var(--mono); font-size:17px; color:var(--teal); font-weight:600;
+}
+.final .tag{display:block; font-family:var(--sans); font-size:11.5px; color:var(--text-dim); font-weight:400; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.06em;}
+
+.badge{display:inline-block; font-family:var(--mono); font-size:11px; padding:3px 9px; border-radius:20px; margin-left:8px; vertical-align:middle;}
+.badge.minor{background:rgba(70,225,176,0.15); color:var(--teal);}
+.badge.moderate{background:rgba(242,166,90,0.15); color:var(--amber);}
+.badge.severe{background:rgba(255,111,111,0.15); color:var(--red);}
+
+.ref-table{width:100%; border-collapse:collapse; margin-top:16px; font-size:13px;}
+.ref-table th{text-align:left; color:var(--text-dim); font-family:var(--mono); padding:8px; border-bottom:1px solid var(--line); font-size:11px; text-transform:uppercase;}
+.ref-table td{padding:8px; border-bottom:1px solid var(--line); color:var(--text-dim);}
+.ref-table td:first-child{color:var(--text); font-family:var(--mono); font-weight:600; width:110px;}
+
+footer{margin-top:40px; padding-top:18px; border-top:1px solid var(--line); color:#4c5a6a; font-size:11.5px; font-family:var(--mono); text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="eyebrow"></div>
+    <h1 class="title">LOG<span>//</span>DECODER</h1>
+    <p class="subtitle">เครื่องมือถอดรหัสลอการิทึม — คำนวณสมบัติลอการิทึม แก้สมการเอกซ์โพเนนเชียล และวิเคราะห์สเกลแผ่นดินไหวมาตราริกเตอร์ (Richter Scale) พร้อมขั้นตอนคำนวณอย่างละเอียด</p>
+
+    <div class="ruler-box">
+      <div class="ruler-label"><span>SCALE READOUT</span><span id="rulerCaption">10⁰ … 10⁹ — ป้อนค่าเพื่อดูตำแหน่งบนสเกลลอการิทึม</span></div>
+      <div class="ruler" id="ruler"></div>
+    </div>
+  </div>
+
+  <nav class="maintabs">
+    <button class="active" data-main="solver">01 · LOG SOLVER</button>
+    <button data-main="scale">02 · RICHTER SCALE CALC</button>
+  </nav>
+
+  <!-- ============ SOLVER ============ -->
+  <section id="panel-solver" class="panel active">
+    <div class="subtabs">
+      <button class="active" data-sub="solver" data-target="evaluate">คำนวณค่า log</button>
+      <button data-sub="solver" data-target="properties">สมบัติของ log</button>
+      <button data-sub="solver" data-target="equation">แก้สมการเลขชี้กำลัง</button>
+    </div>
+
+    <!-- Subpanel 1: Evaluate -->
+    <div class="subpanel active" data-sub-target="evaluate">
+      <div class="card">
+        <h3>log<sub>b</sub>(x) = ?</h3>
+        <p class="desc">คำนวณค่าลอการิทึมด้วยสูตรเปลี่ยนฐาน (change of base): log<sub>b</sub>(x) = ln(x) / ln(b)</p>
+        <div class="field-row">
+          <div class="field">
+            <label>ฐาน b</label>
+            <input type="text" id="ev_b" value="10" placeholder="เช่น 10, 2, e">
+            <div class="hint">พิมพ์ "e" สำหรับ ln</div>
+          </div>
+          <div class="field">
+            <label>ค่า x</label>
+            <input type="text" id="ev_x" value="1000" placeholder="เช่น 1000">
+          </div>
+        </div>
+        <button class="solve-btn" onclick="Solver.evaluate()">▶ ถอดรหัส</button>
+        <div class="result" id="ev_result"></div>
+      </div>
+    </div>
+
+    <!-- Subpanel 2: Properties -->
+    <div class="subpanel" data-sub-target="properties">
+      <div class="card">
+        <h3>สมบัติของลอการิทึม</h3>
+        <p class="desc">เลือกสมบัติที่ต้องการ แล้วดูขั้นตอนขยาย/ยุบรูป พร้อมพิสูจน์ด้วยค่าตัวเลขจริงว่าสองข้างเท่ากัน</p>
+        <div class="field-row">
+          <div class="field">
+            <label>สมบัติ</label>
+            <select id="pr_op" onchange="Solver.renderPropFields()">
+              <option value="product">Product Rule: log(m·n)</option>
+              <option value="quotient">Quotient Rule: log(m/n)</option>
+              <option value="power">Power Rule: log(m^k)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>ฐาน b</label>
+            <input type="text" id="pr_b" value="10">
+          </div>
+        </div>
+        <div class="field-row" id="pr_fields"></div>
+        <button class="solve-btn" onclick="Solver.properties()">▶ ถอดรหัส</button>
+        <div class="result" id="pr_result"></div>
+      </div>
+    </div>
+
+    <!-- Subpanel 3: Equation -->
+    <div class="subpanel" data-sub-target="equation">
+      <div class="card">
+        <h3>a · b <sup>x</sup> = c &nbsp;→&nbsp; หา x</h3>
+        <p class="desc">แก้สมการเอกซ์โพเนนเชียลด้วยการ log ทั้งสองข้าง</p>
+        <div class="field-row">
+          <div class="field"><label>a</label><input type="text" id="eq_a" value="1"></div>
+          <div class="field"><label>ฐาน b</label><input type="text" id="eq_b" value="2"></div>
+          <div class="field"><label>c</label><input type="text" id="eq_c" value="128"></div>
+        </div>
+        <button class="solve-btn" onclick="Solver.equation()">▶ ถอดรหัส</button>
+        <div class="result" id="eq_result"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ RICHTER SCALE CALC ============ -->
+  <section id="panel-scale" class="panel">
+    <div class="card">
+      <h3>มาตราริกเตอร์ (Richter Magnitude Scale)</h3>
+      <p class="desc">สูตรพื้นฐาน: <b>M = log<sub>10</sub>(A / A₀)</b> โดย A คือแอมพลิจูดคลื่นแผ่นดินไหวสูงสุดที่วัดได้ และ A₀ คือแอมพลิจูดอ้างอิงระดับมาตรฐาน</p>
+      
+      <div class="field-row">
+        <div class="field">
+          <label>โหมดการคำนวณ</label>
+          <select id="ri_mode" onchange="Scale.renderRichterFields()">
+            <option value="toM">1. หาแมกนิจูด (M) จากอัตราส่วนแอมพลิจูด (A / A₀)</option>
+            <option value="toA">2. หาอัตราส่วนแอมพลิจูด (A / A₀) จากแมกนิจูด (M)</option>
+            <option value="compare">3. เปรียบเทียบแอมพลิจูดและพลังงานระหว่าง 2 แมกนิจูด (M₁ vs M₂)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row" id="ri_fields"></div>
+      <button class="solve-btn" onclick="Scale.richter()">▶ คำนวณมาตราริกเตอร์</button>
+      <div class="result" id="ri_result"></div>
+
+      <!-- Richter reference info -->
+      <table class="ref-table">
+        <thead>
+          <tr>
+            <th>แมกนิจูด (M)</th>
+            <th>ความแรง / ผลกระทบ</th>
+            <th>พลังงานเปรียบเทียบ (เทียบ TNT)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>&lt; 3.0</td>
+            <td>เบามาก มนุษย์แทบไม่รู้สึก แต่เครื่องวัดแผ่นดินไหวตรวจจับได้</td>
+            <td>&lt; 50 กิโลกรัม TNT</td>
+          </tr>
+          <tr>
+            <td>3.0 – 3.9</td>
+            <td>แผ่นดินไหวเล็กน้อย สัมผัสได้ในอาคารสูง สิ่งของแขวนแกว่งไกว</td>
+            <td>~480 กิโลกรัม TNT</td>
+          </tr>
+          <tr>
+            <td>4.0 – 4.9</td>
+            <td>แผ่นดินไหวปานกลาง หน้าต่างสั่น ถ้วยชามกระทบกัน ไม่มีความเสียหายร้ายแรง</td>
+            <td>~15 ตัน TNT</td>
+          </tr>
+          <tr>
+            <td>5.0 – 5.9</td>
+            <td>รุนแรงปานกลาง อาคารไม่แข็งแรงร้าว อาคารมาตรฐานปลอดภัย</td>
+            <td>~480 ตัน TNT</td>
+          </tr>
+          <tr>
+            <td>6.0 – 6.9</td>
+            <td>รุนแรง อาคารพังทลายในรัศมี 100 กม. เสียหายหนักในพื้นที่แออัด</td>
+            <td>~15 กิโลตัน TNT (เทียบเท่าระเบิดปรมาณู)</td>
+          </tr>
+          <tr>
+            <td>7.0 – 7.9</td>
+            <td>รุนแรงมาก อาคารพังทลายเป็นบริเวณกว้าง ท่อใต้ดินแตกหัก ผิวดินร้าว</td>
+            <td>~480 กิโลตัน TNT</td>
+          </tr>
+          <tr>
+            <td>8.0ขึ้นไป</td>
+            <td>มหันตภัย อาคารเกือบทั้งหมดพังทลาย เกิดสึนามิและความเสียหายรุนแรงขั้นสุด</td>
+            <td>&gt; 15 เมกะตัน TNT</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer></footer>
+</div>
+
+<script>
+/* ---------------- utils ---------------- */
+function fmt(n, d=4){
+  if(!isFinite(n)) return "ไม่นิยาม";
+  if(Math.abs(n) < 1e-10) n = 0;
+  let s = n.toFixed(d);
+  if(s.indexOf('.') !== -1){ s = s.replace(/0+$/,'').replace(/\.$/,''); }
+  return s;
+}
+function parseNum(str){
+  if(str === undefined) return NaN;
+  str = str.trim();
+  if(str.toLowerCase() === 'e') return Math.E;
+  if(str.toLowerCase() === 'pi') return Math.PI;
+  return parseFloat(str);
+}
+function ln(x){ return Math.log(x); }
+function logb(x,b){ return Math.log(x)/Math.log(b); }
+function baseLabel(b){ return (Math.abs(b - Math.E) < 1e-9) ? 'e' : fmt(b,4); }
+
+function stepsHTML(steps){
+  return steps.map((s,i)=>`<div class="step"><span class="n">${i+1}</span>${s}</div>`).join('');
+}
+function finalHTML(tag, value){
+  return `<div class="final"><span class="tag">${tag}</span>${value}</div>`;
+}
+function errorHTML(msg){
+  return `<div class="error-box">${msg}</div>`;
+}
+
+/* ---------------- ruler / signature element ---------------- */
+const ruler = document.getElementById('ruler');
+const rulerCaption = document.getElementById('rulerCaption');
+function buildRuler(){
+  ruler.innerHTML = '<div class="ruler-line"></div>';
+  for(let p=0;p<=9;p++){
+    const pct = p/9*100;
+    const tick = document.createElement('div');
+    tick.className='tick'; tick.style.left=pct+'%';
+    ruler.appendChild(tick);
+    const lab = document.createElement('div');
+    lab.className='tick-label'; lab.style.left=pct+'%'; lab.textContent='10';
+    ruler.appendChild(lab);
+    const num = document.createElement('div');
+    num.className='tick-num'; num.style.left=(pct+2.2)+'%'; num.textContent=p;
+    ruler.appendChild(num);
+  }
+}
+buildRuler();
+
+function placeMarker(value, tagText){
+  document.querySelectorAll('.marker,.marker-tag').forEach(e=>e.remove());
+  if(!isFinite(value) || value<=0) return;
+  let decades = Math.log10(value);
+  let pct = (decades/9)*100;
+  pct = Math.max(0, Math.min(100, pct));
+  const m = document.createElement('div');
+  m.className='marker'; m.style.left=pct+'%';
+  const t = document.createElement('div');
+  t.className='marker-tag'; t.style.left=pct+'%'; t.textContent=tagText;
+  ruler.appendChild(m); ruler.appendChild(t);
+  rulerCaption.textContent = 'ตำแหน่งล่าสุดบนสเกล log₁₀';
+}
+
+/* ---------------- tab wiring ---------------- */
+document.querySelectorAll('.maintabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.maintabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('panel-'+btn.dataset.main).classList.add('active');
+  });
+});
+
+document.querySelectorAll('.subtabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const group = btn.dataset.sub;
+    const target = btn.dataset.target;
+    const panelRoot = btn.closest('section');
+    
+    // เปลี่ยนปุ่ม Active
+    const siblings = panelRoot.querySelectorAll(`.subtabs button[data-sub="${group}"]`);
+    siblings.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    // ซ่อน Subpanel ทั้งหมดในกลุ่ม แล้วแสดงเฉพาะ Subpanel ที่เลือก
+    panelRoot.querySelectorAll('.subpanel').forEach(p=>{
+      p.classList.remove('active');
+    });
+    const targetSubpanel = panelRoot.querySelector(`.subpanel[data-sub-target="${target}"]`);
+    if(targetSubpanel){
+      targetSubpanel.classList.add('active');
+    }
+  });
+});
+
+/* ================= SOLVER ================= */
+const Solver = {
+  evaluate(){
+    const out = document.getElementById('ev_result');
+    const b = parseNum(document.getElementById('ev_b').value);
+    const x = parseNum(document.getElementById('ev_x').value);
+    if(isNaN(b) || isNaN(x)){ out.innerHTML = errorHTML('กรุณาป้อนตัวเลขให้ครบทั้งฐานและค่า x'); return; }
+    if(b<=0 || b===1){ out.innerHTML = errorHTML('เงื่อนไขของฐาน log ไม่ผ่าน: ฐาน b ต้อง &gt; 0 และ b ≠ 1'); return; }
+    if(x<=0){ out.innerHTML = errorHTML('เงื่อนไขของ log ไม่ผ่าน: อาร์กิวเมนต์ x ต้อง &gt; 0 (log ของ 0 หรือค่าลบไม่นิยาม)'); return; }
+    const val = logb(x,b);
+    const steps = [
+      `ตรวจเงื่อนไข: b = ${baseLabel(b)} &gt; 0, b ≠ 1 และ x = ${fmt(x)} &gt; 0 — <b>ผ่าน</b>`,
+      `ใช้สูตรเปลี่ยนฐาน: log<sub>b</sub>(x) = ln(x) / ln(b)`,
+      `แทนค่า: ln(${fmt(x)}) / ln(${baseLabel(b)}) = ${fmt(ln(x))} / ${fmt(ln(b))}`,
+      `คำนวณผลหาร: = ${fmt(val)}`
+    ];
+    out.innerHTML = stepsHTML(steps) + finalHTML(`log_${baseLabel(b)}(${fmt(x)}) =`, fmt(val));
+    placeMarker(x, `x=${fmt(x)}`);
+  },
+
+  renderPropFields(){
+    const op = document.getElementById('pr_op').value;
+    const box = document.getElementById('pr_fields');
+    if(op==='power'){
+      box.innerHTML = `
+        <div class="field"><label>m</label><input type="text" id="pr_m" value="2"></div>
+        <div class="field"><label>เลขชี้กำลัง k</label><input type="text" id="pr_k" value="5"></div>`;
+    } else {
+      box.innerHTML = `
+        <div class="field"><label>m</label><input type="text" id="pr_m" value="4"></div>
+        <div class="field"><label>n</label><input type="text" id="pr_n" value="8"></div>`;
+    }
+  },
+
+  properties(){
+    const out = document.getElementById('pr_result');
+    const op = document.getElementById('pr_op').value;
+    const b = parseNum(document.getElementById('pr_b').value);
+    if(isNaN(b) || b<=0 || b===1){ out.innerHTML = errorHTML('เงื่อนไขของฐาน log ไม่ผ่าน: ฐาน b ต้อง &gt; 0 และ b ≠ 1'); return; }
+
+    if(op==='power'){
+      const m = parseNum(document.getElementById('pr_m').value);
+      const k = parseNum(document.getElementById('pr_k').value);
+      if(isNaN(m)||isNaN(k)){ out.innerHTML = errorHTML('กรุณาป้อนตัวเลขให้ครบ'); return; }
+      if(m<=0){ out.innerHTML = errorHTML('เงื่อนไขไม่ผ่าน: m ต้อง &gt; 0 เพื่อให้ log<sub>b</sub>(m) นิยามได้'); return; }
+      const direct = logb(Math.pow(m,k), b);
+      const expanded = k*logb(m,b);
+      const steps = [
+        `กฎกำลัง (Power Rule): log<sub>b</sub>(m<sup>k</sup>) = k · log<sub>b</sub>(m)`,
+        `แทนค่า: log<sub>${baseLabel(b)}</sub>(${fmt(m)}<sup>${fmt(k)}</sup>) = ${fmt(k)} · log<sub>${baseLabel(b)}</sub>(${fmt(m)})`,
+        `คำนวณฝั่งขวา (ยุบรูป): ${fmt(k)} × ${fmt(logb(m,b))} = ${fmt(expanded)}`,
+        `ตรวจสอบฝั่งซ้าย (คำนวณตรง): log<sub>${baseLabel(b)}</sub>(${fmt(Math.pow(m,k))}) = ${fmt(direct)}`
+      ];
+      out.innerHTML = stepsHTML(steps) + finalHTML('ทั้งสองข้างเท่ากัน → สมบัติเป็นจริง', `${fmt(direct)} = ${fmt(expanded)}`);
+    } else {
+      const m = parseNum(document.getElementById('pr_m').value);
+      const n = parseNum(document.getElementById('pr_n').value);
+      if(isNaN(m)||isNaN(n)){ out.innerHTML = errorHTML('กรุณาป้อนตัวเลขให้ครบ'); return; }
+      if(m<=0 || n<=0){ out.innerHTML = errorHTML('เงื่อนไขไม่ผ่าน: m และ n ต้อง &gt; 0'); return; }
+      if(op==='quotient' && n===0){ out.innerHTML = errorHTML('หารด้วยศูนย์ไม่ได้'); return; }
+
+      if(op==='product'){
+        const combined = m*n;
+        const direct = logb(combined,b);
+        const expanded = logb(m,b)+logb(n,b);
+        const steps = [
+          `กฎการคูณ (Product Rule): log<sub>b</sub>(m·n) = log<sub>b</sub>(m) + log<sub>b</sub>(n)`,
+          `แทนค่า: log<sub>${baseLabel(b)}</sub>(${fmt(m)} × ${fmt(n)}) = log<sub>${baseLabel(b)}</sub>(${fmt(m)}) + log<sub>${baseLabel(b)}</sub>(${fmt(n)})`,
+          `คำนวณฝั่งขวา: ${fmt(logb(m,b))} + ${fmt(logb(n,b))} = ${fmt(expanded)}`,
+          `ตรวจสอบฝั่งซ้าย: log<sub>${baseLabel(b)}</sub>(${fmt(combined)}) = ${fmt(direct)}`
+        ];
+        out.innerHTML = stepsHTML(steps) + finalHTML('ทั้งสองข้างเท่ากัน → สมบัติเป็นจริง', `${fmt(direct)} = ${fmt(expanded)}`);
+      } else {
+        const combined = m/n;
+        const direct = logb(combined,b);
+        const expanded = logb(m,b)-logb(n,b);
+        const steps = [
+          `กฎการหาร (Quotient Rule): log<sub>b</sub>(m/n) = log<sub>b</sub>(m) − log<sub>b</sub>(n)`,
+          `แทนค่า: log<sub>${baseLabel(b)}</sub>(${fmt(m)} / ${fmt(n)}) = log<sub>${baseLabel(b)}</sub>(${fmt(m)}) − log<sub>${baseLabel(b)}</sub>(${fmt(n)})`,
+          `คำนวณฝั่งขวา: ${fmt(logb(m,b))} − ${fmt(logb(n,b))} = ${fmt(expanded)}`,
+          `ตรวจสอบฝั่งซ้าย: log<sub>${baseLabel(b)}</sub>(${fmt(combined)}) = ${fmt(direct)}`
+        ];
+        out.innerHTML = stepsHTML(steps) + finalHTML('ทั้งสองข้างเท่ากัน → สมบัติเป็นจริง', `${fmt(direct)} = ${fmt(expanded)}`);
+      }
+    }
+  },
+
+  equation(){
+    const out = document.getElementById('eq_result');
+    const a = parseNum(document.getElementById('eq_a').value);
+    const b = parseNum(document.getElementById('eq_b').value);
+    const c = parseNum(document.getElementById('eq_c').value);
+    if(isNaN(a)||isNaN(b)||isNaN(c)){ out.innerHTML = errorHTML('กรุณาป้อนตัวเลข a, b, c ให้ครบ'); return; }
+    if(a===0){ out.innerHTML = errorHTML('เงื่อนไขไม่ผ่าน: a ต้อง ≠ 0 (ไม่เช่นนั้นสมการไม่มี b^x เหลืออยู่)'); return; }
+    if(b<=0 || b===1){ out.innerHTML = errorHTML('เงื่อนไขไม่ผ่าน: ฐาน b ต้อง &gt; 0 และ b ≠ 1'); return; }
+    const rhs = c/a;
+    if(rhs<=0){ out.innerHTML = errorHTML(`เงื่อนไขไม่ผ่าน: c/a = ${fmt(rhs)} ต้อง &gt; 0 เพราะ b<sup>x</sup> มีค่าเป็นบวกเสมอ — สมการนี้ไม่มีคำตอบจริง`); return; }
+    const x = logb(rhs,b);
+    const check = a*Math.pow(b,x);
+    const steps = [
+      `สมการตั้งต้น: ${fmt(a)} · ${baseLabel(b)}<sup>x</sup> = ${fmt(c)}`,
+      `หารทั้งสองข้างด้วย a: ${baseLabel(b)}<sup>x</sup> = ${fmt(c)} / ${fmt(a)} = ${fmt(rhs)}`,
+      `ตรวจเงื่อนไข: ${fmt(rhs)} &gt; 0 — <b>ผ่าน</b> (b<sup>x</sup> เป็นบวกเสมอ จึงมีคำตอบจริง)`,
+      `ใส่ log ฐาน ${baseLabel(b)} ทั้งสองข้าง: x = log<sub>${baseLabel(b)}</sub>(${fmt(rhs)})`,
+      `คำนวณด้วยสูตรเปลี่ยนฐาน: x = ln(${fmt(rhs)}) / ln(${baseLabel(b)}) = ${fmt(x)}`,
+      `ตรวจคำตอบ: ${fmt(a)} × ${baseLabel(b)}<sup>${fmt(x)}</sup> = ${fmt(check)} ≈ ${fmt(c)} ✓`
+    ];
+    out.innerHTML = stepsHTML(steps) + finalHTML('x =', fmt(x));
+    placeMarker(rhs, `bˣ=${fmt(rhs)}`);
+  }
+};
+Solver.renderPropFields();
+
+/* ================= RICHTER SCALE ENGINE ================= */
+const Scale = {
+  getRichterBadge(M){
+    if(M < 4.0) return '<span class="badge minor">เบามาก/เล็กน้อย</span>';
+    if(M < 6.0) return '<span class="badge moderate">ปานกลาง</span>';
+    return '<span class="badge severe">รุนแรงมาก</span>';
+  },
+
+  renderRichterFields(){
+    const mode = document.getElementById('ri_mode').value;
+    const box = document.getElementById('ri_fields');
+    if(mode==='toM'){
+      box.innerHTML = `
+        <div class="field"><label>A (แอมพลิจูดที่วัดได้)</label><input type="text" id="ri_A" value="100000"></div>
+        <div class="field"><label>A₀ (แอมพลิจูดอ้างอิง)</label><input type="text" id="ri_A0" value="1"></div>`;
+    } else if(mode==='toA'){
+      box.innerHTML = `
+        <div class="field"><label>M (ขนาดแมกนิจูด)</label><input type="text" id="ri_M" value="6.5"></div>
+        <div class="field"><label>A₀ (แอมพลิจูดอ้างอิง, ค่าเริ่มต้น = 1)</label><input type="text" id="ri_A0b" value="1"></div>`;
+    } else {
+      box.innerHTML = `
+        <div class="field"><label>M₁ (แผ่นดินไหวครั้งที่ 1)</label><input type="text" id="ri_M1" value="5.0"></div>
+        <div class="field"><label>M₂ (แผ่นดินไหวครั้งที่ 2)</label><input type="text" id="ri_M2" value="7.0"></div>`;
+    }
+  },
+
+  richter(){
+    const out = document.getElementById('ri_result');
+    const mode = document.getElementById('ri_mode').value;
+
+    if(mode==='toM'){
+      const A = parseNum(document.getElementById('ri_A').value);
+      const A0 = parseNum(document.getElementById('ri_A0').value);
+      if(isNaN(A)||isNaN(A0)){ out.innerHTML = errorHTML('กรุณาป้อนตัวเลขให้ครบ'); return; }
+      if(A<=0 || A0<=0){ out.innerHTML = errorHTML('เงื่อนไขไม่ผ่าน: A และ A₀ ต้อง &gt; 0'); return; }
+      
+      const ratio = A/A0;
+      const M = Math.log10(ratio);
+      const badge = this.getRichterBadge(M);
+
+      const steps = [
+        `สูตรมาตราริกเตอร์: M = log₁₀(A / A₀)`,
+        `คำนวณอัตราส่วนแอมพลิจูด: A / A₀ = ${fmt(A)} / ${fmt(A0)} = ${fmt(ratio)}`,
+        `แทนค่าในลอการิทึมฐาน 10: M = log₁₀(${fmt(ratio)})`,
+        `คำนวณ: M = ${fmt(M, 2)} Richter`
+      ];
+      out.innerHTML = stepsHTML(steps) + finalHTML('แมกนิจูด M =', `${fmt(M,2)} ${badge}`);
+      placeMarker(ratio, `A/A₀=${fmt(ratio)}`);
+
+    } else if(mode==='toA'){
+      const M = parseNum(document.getElementById('ri_M').value);
+      const A0 = parseNum(document.getElementById('ri_A0b').value) || 1;
+      if(isNaN(M)){ out.innerHTML = errorHTML('กรุณาป้อนค่าแมกนิจูด M'); return; }
+      
+      const ratio = Math.pow(10, M);
+      const A = ratio * A0;
+      const badge = this.getRichterBadge(M);
+
+      const steps = [
+        `จากสูตร M = log₁₀(A / A₀) แปลงเป็นสมบัติเลขชี้กำลัง: A / A₀ = 10<sup>M</sup>`,
+        `แทนค่า M = ${fmt(M)}: A / A₀ = 10<sup>${fmt(M)}</sup> = ${fmt(ratio)} เท่าของค่าอ้างอิง`,
+        `คำนวณแอมพลิจูดจริง (เมื่อ A₀ = ${fmt(A0)}): A = ${fmt(ratio)} × ${fmt(A0)} = ${fmt(A)}`
+      ];
+      out.innerHTML = stepsHTML(steps) + finalHTML('อัตราส่วนแอมพลิจูด A/A₀ =', `${fmt(ratio)} เท่า ${badge}`);
+      placeMarker(ratio, `A/A₀=${fmt(ratio)}`);
+
+    } else {
+      const M1 = parseNum(document.getElementById('ri_M1').value);
+      const M2 = parseNum(document.getElementById('ri_M2').value);
+      if(isNaN(M1)||isNaN(M2)){ out.innerHTML = errorHTML('กรุณาป้อนค่า M₁ และ M₂ ให้ครบถ้วน'); return; }
+
+      const diffM = M2 - M1;
+      const ampRatio = Math.pow(10, diffM);
+      const energyRatio = Math.pow(10, 1.5 * diffM);
+
+      const steps = [
+        `ผลต่างแมกนิจูด: ΔM = M₂ − M₁ = ${fmt(M2)} − ${fmt(M1)} = ${fmt(diffM)}`,
+        `คำนวณความสูงคลื่น (Amplitude Ratio): A₂/A₁ = 10<sup>(M₂ − M₁)</sup> = 10<sup>${fmt(diffM)}</sup> = ${fmt(ampRatio)} เท่า`,
+        `คำนวณพลังงานที่ปลดปล่อย (Energy Ratio): E₂/E₁ = 10<sup>1.5(M₂ − M₁)</sup> = 10<sup>1.5 × ${fmt(diffM)}</sup> = 10<sup>${fmt(1.5*diffM)}</sup>`,
+        `คำนวณพลังงานลอการิทึม: E₂/E₁ ≈ ${fmt(energyRatio, 2)} เท่า`
+      ];
+      out.innerHTML = stepsHTML(steps) + finalHTML(
+        `ขนาด M=${fmt(M2)} ปลดปล่อยพลังงานมากกว่า M=${fmt(M1)} ถึง`, 
+        `${fmt(energyRatio, 1)} เท่า <span class="badge severe">(แอมพลิจูดสูงกว่า ${fmt(ampRatio, 1)} เท่า)</span>`
+      );
+      placeMarker(energyRatio, `E ratio=${fmt(energyRatio,1)}`);
+    }
+  }
+};
+
+Scale.renderRichterFields();
+</script>
+</body>
+</html>
